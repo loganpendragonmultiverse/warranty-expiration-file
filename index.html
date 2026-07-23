@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Track warranty dates locally and export portable JSON and calendar reminders.">
+  <title>Warranty Expiration File</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Private · local-first · offline</p>
+    <h1>Warranty Expiration File</h1>
+    <p>Keep warranty dates useful without creating another account or uploading receipts.</p>
+  </header>
+  <main>
+    <section class="panel" aria-labelledby="add-heading">
+      <h2 id="add-heading">Add a warranty</h2>
+      <form id="warranty-form">
+        <input id="record-id" type="hidden">
+        <label>Item name <input id="item" required maxlength="120" autocomplete="off"></label>
+        <label>Warranty ends <input id="warranty-end" type="date" required></label>
+        <label>Purchased <input id="purchase-date" type="date"></label>
+        <label>Category <input id="category" maxlength="80" autocomplete="off"></label>
+        <label>Vendor <input id="vendor" maxlength="120" autocomplete="off"></label>
+        <label>Model or reference <input id="model" maxlength="120" autocomplete="off"></label>
+        <label class="wide">Notes <textarea id="notes" rows="3" maxlength="1000"></textarea></label>
+        <div class="actions wide">
+          <button type="submit">Save warranty</button>
+          <button type="button" class="secondary" id="cancel-edit" hidden>Cancel edit</button>
+        </div>
+      </form>
+      <p id="form-message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="records-heading">
+      <div class="section-heading">
+        <div><h2 id="records-heading">Warranty records</h2><p id="summary"></p></div>
+        <label>Show
+          <select id="filter">
+            <option value="all">All records</option>
+            <option value="expiring">Expiring within 60 days</option>
+            <option value="active">Active later</option>
+            <option value="expired">Expired</option>
+          </select>
+        </label>
+      </div>
+      <div id="empty-state">No warranties saved yet.</div>
+      <div id="records" class="records"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="portability-heading">
+      <h2 id="portability-heading">Back up and take it with you</h2>
+      <p>Exports contain the information you entered. Store them somewhere appropriate.</p>
+      <div class="actions">
+        <button type="button" id="export-json">Export JSON</button>
+        <button type="button" id="export-ics" class="secondary">Export calendar</button>
+        <label class="file-button">Import JSON <input id="import-json" type="file" accept="application/json,.json"></label>
+      </div>
+      <p id="import-message" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <footer>Data stays in this browser unless you export it. No analytics, cookies, accounts, or network requests.</footer>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

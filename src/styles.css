@@ -1,0 +1,29 @@
+:root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #f3f0e8; color: #16211b; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+header, main, footer { width: min(1080px, calc(100% - 2rem)); margin-inline: auto; }
+header { padding: 4rem 0 2rem; }
+h1 { max-width: 760px; margin: .25rem 0 .75rem; font-family: Georgia, serif; font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: .95; letter-spacing: -.04em; }
+h2, h3, p { margin-top: 0; }
+.eyebrow { color: #8b3f23; font-size: .8rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+main { display: grid; gap: 1rem; padding-bottom: 3rem; }
+.panel { border: 1px solid #c8c0af; border-radius: 18px; background: #fffdf7; padding: clamp(1rem, 3vw, 2rem); box-shadow: 0 14px 40px #493f2c12; }
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+label { display: grid; gap: .4rem; font-size: .85rem; font-weight: 750; }
+input, textarea, select { width: 100%; border: 1px solid #aaa18f; border-radius: 9px; background: white; color: inherit; font: inherit; padding: .75rem; }
+input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px solid #d39a73; outline-offset: 2px; }
+.wide { grid-column: 1 / -1; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+button, .file-button { border: 0; border-radius: 999px; background: #1e5b42; color: white; cursor: pointer; font: inherit; font-weight: 800; padding: .7rem 1rem; }
+button.secondary, .file-button { background: #e5dfd1; color: #16211b; }
+button.danger { background: #8b332d; }
+.file-button { display: inline-flex; }
+.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.section-heading { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+.records { display: grid; gap: .75rem; }
+.record { border-left: 6px solid #1e5b42; border-radius: 10px; background: #f5f2e9; padding: 1rem; }
+.record.expiring { border-color: #c56b20; }
+.record.expired { border-color: #9b3732; }
+.record p { color: #514c43; }
+footer { border-top: 1px solid #c8c0af; color: #625b4e; padding: 1.5rem 0 3rem; }
+@media (max-width: 650px) { form { grid-template-columns: 1fr; } .wide { grid-column: auto; } .section-heading { display: grid; } header { padding-top: 2.5rem; } }
