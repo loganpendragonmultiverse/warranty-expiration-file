@@ -100,3 +100,87 @@ test("identical records and empty backup preserve all saved records", async ({ p
   await page.locator("#merge-apply").click();
   expect((await stored(page)).length).toBe(2);
 });
+
+
+async function deferReads(page) {
+  await page.evaluate(() => {
+    window.deferredReads = {};
+    File.prototype.text = function () {
+      return new Promise((resolve, reject) => {
+        window.deferredReads[this.name] = { resolve, reject };
+      });
+    };
+  });
+}
+
+async function beginDeferredImport(page, name) {
+  await page.locator("#import-json").setInputFiles({
+    name, mimeType: "application/json", buffer: Buffer.from("{}"),
+  });
+  await expect.poll(() => page.evaluate(name => Boolean(window.deferredReads[name]), name)).toBe(true);
+}
+
+async function finishDeferredImport(page, name, payload) {
+  await page.evaluate(({ name, payload }) => {
+    window.deferredReads[name].resolve(JSON.stringify(payload));
+  }, { name, payload });
+}
+
+test("delayed import previews current records after a save, preserving the saved record on apply", async ({ page }) => {
+  await open(page);
+  await deferReads(page);
+  await beginDeferredImport(page, "slow.json");
+  await page.locator("#item").fill("Saved during import");
+  await page.locator("#warranty-end").fill("2029-01-01");
+  await page.getByRole("button", { name: "Save warranty", exact: true }).click();
+  await expect(page.locator("#summary")).toContainText("3 total");
+  await finishDeferredImport(page, "slow.json", backup([added]));
+  await expect(page.locator("#merge-preview")).toBeVisible();
+  await page.locator("#merge-apply").click();
+  expect((await stored(page)).map(record => record.item)).toContain("Saved during import");
+  await expect(page.locator("#summary")).toContainText("4 total");
+});
+
+test("delayed import does not restore a record deleted while reading the backup", async ({ page }) => {
+  await open(page);
+  await deferReads(page);
+  await beginDeferredImport(page, "slow.json");
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator("article").filter({ has: page.getByRole("heading", { name: "Retain me", exact: true }) })
+    .getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.locator("#summary")).toContainText("1 total");
+  await finishDeferredImport(page, "slow.json", backup([added]));
+  await expect(page.locator("#merge-preview")).toBeVisible();
+  await page.locator("#merge-apply").click();
+  expect((await stored(page)).some(record => record.id === "other")).toBe(false);
+  await expect(page.locator("#summary")).toContainText("2 total");
+});
+
+test("older import finishing after a newer import was canceled cannot reopen a preview", async ({ page }) => {
+  await open(page);
+  const before = await stored(page);
+  await deferReads(page);
+  await beginDeferredImport(page, "A.json");
+  await beginDeferredImport(page, "B.json");
+  await finishDeferredImport(page, "B.json", backup([added]));
+  await expect(page.locator("#merge-preview")).toBeVisible();
+  await page.locator("#merge-cancel").click();
+  await expect(page.locator("#merge-preview")).toBeHidden();
+  await finishDeferredImport(page, "A.json", backup([changed]));
+  // Flush the pending promise continuation before asserting that it had no UI effect.
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 0)));
+  await expect(page.locator("#merge-preview")).toBeHidden();
+  await expect(page.locator("#import-message")).toContainText("Import canceled");
+  expect(await stored(page)).toEqual(before);
+});
+
+test("saving while a preview is open invalidates the preview instead of applying its old records", async ({ page }) => {
+  await open(page);
+  await upload(page);
+  await expect(page.locator("#merge-preview")).toBeVisible();
+  await page.locator("#item").fill("Saved after preview");
+  await page.locator("#warranty-end").fill("2029-01-01");
+  await page.getByRole("button", { name: "Save warranty", exact: true }).click();
+  await expect(page.locator("#merge-preview")).toBeHidden();
+  expect((await stored(page)).map(record => record.item)).toContain("Saved after preview");
+});

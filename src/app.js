@@ -4,6 +4,8 @@ const STORAGE_KEY = "warranty-expiration-file.v1";
 const elements = Object.fromEntries([...document.querySelectorAll("[id]")].map((element) => [element.id, element]));
 let records = load();
 let pendingMerge = null;
+let importGeneration = 0;
+let recordsVersion = 0;
 
 function load() {
   try {
@@ -16,7 +18,8 @@ function load() {
 
 function commit(next) {
   records = persistRecords(localStorage, STORAGE_KEY, next);
-  cancelMerge(false);
+  recordsVersion += 1;
+  clearMerge();
 }
 
 function today() {
@@ -123,22 +126,31 @@ elements.filter.addEventListener("change", render);
 elements["export-json"].addEventListener("click", () => download("warranties.json", `${JSON.stringify(exportPayload(records), null, 2)}\n`, "application/json"));
 elements["export-ics"].addEventListener("click", () => download("warranty-expirations.ics", toIcs(records), "text/calendar"));
 elements["import-json"].addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  // Capture the File before clearing the input; older reads must never clear a newer selection.
+  event.target.value = "";
+  const generation = ++importGeneration;
+  clearMerge();
   try {
-    const file = event.target.files[0];
-    if (!file) return;
-    cancelMerge(false);
-    showMerge(previewMerge(records, JSON.parse(await file.text())));
+    const text = await file.text();
+    if (generation !== importGeneration) return;
+    // Read records only after the await, so intervening successful saves/deletes are included.
+    showMerge(previewMerge(records, JSON.parse(text)));
   } catch (error) {
-    elements["import-message"].textContent = error.message;
-  } finally {
-    event.target.value = "";
+    if (generation === importGeneration) elements["import-message"].textContent = error.message;
   }
 });
 
-function cancelMerge(announce = true) {
+function clearMerge() {
   pendingMerge = null;
   elements["merge-preview"].hidden = true;
   elements["merge-conflicts"].replaceChildren();
+}
+
+function cancelMerge(announce = true) {
+  importGeneration += 1;
+  clearMerge();
   if (announce) {
     elements["import-message"].textContent = "Import canceled. Records unchanged.";
     elements["import-json"].focus();
@@ -146,7 +158,7 @@ function cancelMerge(announce = true) {
 }
 
 function showMerge(preview) {
-  pendingMerge = preview;
+  pendingMerge = { ...preview, recordsVersion };
   elements["merge-summary"].textContent = preview.additions.length + " new · " +
     preview.unchanged.length + " unchanged · " + preview.conflicts.length +
     " conflicts. Existing records absent from this backup are kept.";
@@ -182,6 +194,11 @@ elements["merge-preview"].addEventListener("keydown", event => {
 });
 elements["merge-apply"].addEventListener("click", () => {
   if (!pendingMerge) return;
+  if (pendingMerge.recordsVersion !== recordsVersion) {
+    cancelMerge(false);
+    elements["import-message"].textContent = "Records changed. Import the backup again to review a fresh preview.";
+    return;
+  }
   try {
     const choices = Object.fromEntries(pendingMerge.conflicts.map((conflict, index) => [
       conflict.id, elements["merge-conflicts"].querySelector('input[name="merge-' + index + '"]:checked').value

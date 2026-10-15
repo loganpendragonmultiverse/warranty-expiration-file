@@ -22,3 +22,7 @@ Install development dependencies with npm ci, then run:
 The Chromium suite uses only intercepted local fixture files, synthetic records and isolated
 browser storage. It checks native keyboard radio choices, Escape cancellation, desktop/390px
 overflow, persistence across reload, download behavior and failed storage writes.
+
+Deferred File.prototype.text browser regressions cover saves and deletions during import,
+overlapping A/B reads after cancellation, and invalidation of previews after record changes.
+The tests resolve individual read promises explicitly instead of depending on timing sleeps.
