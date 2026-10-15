@@ -27,3 +27,10 @@ button.danger { background: #8b332d; }
 .record p { color: #514c43; }
 footer { border-top: 1px solid #c8c0af; color: #625b4e; padding: 1.5rem 0 3rem; }
 @media (max-width: 650px) { form { grid-template-columns: 1fr; } .wide { grid-column: auto; } .section-heading { display: grid; } header { padding-top: 2.5rem; } }
+
+[hidden] { display: none !important; }
+#merge-preview { margin-top: 1.5rem; }
+#merge-conflicts fieldset { min-width: 0; margin: 1rem 0; border: 1px solid #aaa18f; border-radius: 9px; }
+#merge-conflicts label { display: block; margin: .75rem 0; overflow-wrap: anywhere; }
+#merge-conflicts input { width: auto; margin-right: .5rem; }
+.file-button:focus-within { outline: 3px solid #d39a73; outline-offset: 2px; }

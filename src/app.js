@@ -1,8 +1,9 @@
-import { exportPayload, importPayload, normalizeRecord, sortRecords, status, toIcs } from "./core.js";
+import { exportPayload, importPayload, normalizeRecord, sortRecords, status, toIcs, previewMerge, resolveMerge, persistRecords } from "./core.js";
 
 const STORAGE_KEY = "warranty-expiration-file.v1";
 const elements = Object.fromEntries([...document.querySelectorAll("[id]")].map((element) => [element.id, element]));
 let records = load();
+let pendingMerge = null;
 
 function load() {
   try {
@@ -13,8 +14,9 @@ function load() {
   }
 }
 
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(exportPayload(records)));
+function commit(next) {
+  records = persistRecords(localStorage, STORAGE_KEY, next);
+  cancelMerge(false);
 }
 
 function today() {
@@ -61,8 +63,12 @@ function edit(id) {
 function remove(id) {
   const record = records.find((item) => item.id === id);
   if (!record || !confirm(`Delete the warranty record for “${record.item}”?`)) return;
-  records = records.filter((item) => item.id !== id);
-  save();
+  try {
+    commit(records.filter((item) => item.id !== id));
+  } catch (error) {
+    elements["form-message"].textContent = error.message;
+    return;
+  }
   render();
 }
 
@@ -104,8 +110,7 @@ elements["warranty-form"].addEventListener("submit", (event) => {
   event.preventDefault();
   try {
     const record = formRecord();
-    records = [...records.filter((item) => item.id !== record.id), record];
-    save();
+    commit([...records.filter((item) => item.id !== record.id), record]);
     resetForm();
     elements["form-message"].textContent = "Warranty saved locally.";
     render();
@@ -121,16 +126,74 @@ elements["import-json"].addEventListener("change", async (event) => {
   try {
     const file = event.target.files[0];
     if (!file) return;
-    const imported = importPayload(JSON.parse(await file.text()));
-    if (!confirm(`Replace current records with ${imported.length} imported record(s)?`)) return;
-    records = imported;
-    save();
-    render();
-    elements["import-message"].textContent = "Backup imported.";
+    cancelMerge(false);
+    showMerge(previewMerge(records, JSON.parse(await file.text())));
   } catch (error) {
     elements["import-message"].textContent = error.message;
   } finally {
     event.target.value = "";
+  }
+});
+
+function cancelMerge(announce = true) {
+  pendingMerge = null;
+  elements["merge-preview"].hidden = true;
+  elements["merge-conflicts"].replaceChildren();
+  if (announce) {
+    elements["import-message"].textContent = "Import canceled. Records unchanged.";
+    elements["import-json"].focus();
+  }
+}
+
+function showMerge(preview) {
+  pendingMerge = preview;
+  elements["merge-summary"].textContent = preview.additions.length + " new · " +
+    preview.unchanged.length + " unchanged · " + preview.conflicts.length +
+    " conflicts. Existing records absent from this backup are kept.";
+  elements["merge-conflicts"].replaceChildren();
+  preview.conflicts.forEach((conflict, index) => {
+    const fieldset = document.createElement("fieldset");
+    const legend = document.createElement("legend");
+    legend.textContent = "Conflict: " + conflict.current.item + " (" + conflict.id + ")";
+    fieldset.append(legend);
+    for (const [value, label, record] of [
+      ["keep", "Keep current", conflict.current], ["incoming", "Use backup", conflict.incoming]]) {
+      const wrapper = document.createElement("label");
+      const radio = document.createElement("input");
+      radio.type = "radio"; radio.name = "merge-" + index; radio.value = value;
+      radio.checked = value === "keep";
+      wrapper.append(radio, document.createTextNode(label));
+      const details = document.createElement("p");
+      details.textContent = Object.entries(record).filter(([key]) => key !== "id")
+        .map(([key, value]) => key + ": " + value).join(" · ");
+      wrapper.append(details);
+      fieldset.append(wrapper);
+    }
+    elements["merge-conflicts"].append(fieldset);
+  });
+  elements["merge-preview"].hidden = false;
+  elements["import-message"].textContent = "Review the preview, then apply or cancel.";
+  elements["merge-apply"].focus();
+}
+
+elements["merge-cancel"].addEventListener("click", () => cancelMerge());
+elements["merge-preview"].addEventListener("keydown", event => {
+  if (event.key === "Escape") { event.preventDefault(); cancelMerge(); }
+});
+elements["merge-apply"].addEventListener("click", () => {
+  if (!pendingMerge) return;
+  try {
+    const choices = Object.fromEntries(pendingMerge.conflicts.map((conflict, index) => [
+      conflict.id, elements["merge-conflicts"].querySelector('input[name="merge-' + index + '"]:checked').value
+    ]));
+    const next = resolveMerge(pendingMerge, choices);
+    commit(next);
+    resetForm();
+    render();
+    elements["import-message"].textContent = "Backup merged. Existing records were retained.";
+    elements["import-json"].focus();
+  } catch (error) {
+    elements["import-message"].textContent = "Import not applied: " + error.message;
   }
 });
 

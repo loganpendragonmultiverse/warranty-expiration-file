@@ -57,6 +57,15 @@
         <button type="button" id="export-ics" class="secondary">Export calendar</button>
         <label class="file-button">Import JSON <input id="import-json" type="file" accept="application/json,.json"></label>
       </div>
+      <section id="merge-preview" hidden aria-labelledby="merge-heading">
+        <h3 id="merge-heading">Review backup merge</h3>
+        <p id="merge-summary"></p>
+        <div id="merge-conflicts"></div>
+        <div class="actions">
+          <button type="button" id="merge-apply">Apply merge</button>
+          <button type="button" id="merge-cancel" class="secondary">Cancel import</button>
+        </div>
+      </section>
       <p id="import-message" role="status" aria-live="polite"></p>
     </section>
   </main>

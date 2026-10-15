@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - Unreleased
+
+- Replaced destructive backup replacement with a merge preview, explicit conflict choices, cancel, and storage-failure-safe commits. Updated the intended v1.1.0 release ZIP name.
+
 ## 1.0.0 - 2026-07-22
 
 - Added local warranty record creation, editing, deletion, and status filters.
