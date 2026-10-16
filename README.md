@@ -2,7 +2,7 @@
 
 Warranty Expiration File is an offline browser application for keeping warranty end dates visible. It stores records only in the current browser, separates active, expiring-soon, and expired items, and exports portable JSON backups and standard calendar events.
 
-Use the [live application](https://loganpendragonmultiverse.github.io/warranty-expiration-file/) or download the self-contained ZIP from the [v1.0.0 release](https://github.com/loganpendragonmultiverse/warranty-expiration-file/releases/tag/v1.0.0).
+Use the [live application](https://loganpendragonmultiverse.github.io/warranty-expiration-file/) or download the self-contained ZIP from the [v1.1.1 release](https://github.com/loganpendragonmultiverse/warranty-expiration-file/releases/tag/v1.1.1).
 
 ## Three-minute use
 

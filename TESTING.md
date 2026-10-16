@@ -1,5 +1,7 @@
 # Testing
 
+Run these development commands from a source checkout.
+
 Node >=20 is required; CI uses Node 24.
 
 ```sh

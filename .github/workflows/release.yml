@@ -14,8 +14,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Package
-        run: cd dist/site && zip -r ../warranty-expiration-file-1.1.0.zip .
+        run: cd dist/site && zip -r ../warranty-expiration-file-1.1.1.zip .
       - uses: actions/upload-artifact@v7
         with:
-          name: warranty-expiration-file-1.1.0
-          path: dist/warranty-expiration-file-1.1.0.zip
+          name: warranty-expiration-file-1.1.1
+          path: dist/warranty-expiration-file-1.1.1.zip
