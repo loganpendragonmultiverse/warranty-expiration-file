@@ -2,6 +2,8 @@ import { exportPayload, importPayload, normalizeRecord, sortRecords, status, toI
 
 const STORAGE_KEY = "warranty-expiration-file.v1";
 const elements = Object.fromEntries([...document.querySelectorAll("[id]")].map((element) => [element.id, element]));
+let storedRaw = null;
+let loadProblem = null;
 let records = load();
 let pendingMerge = null;
 let importGeneration = 0;
@@ -9,17 +11,30 @@ let recordsVersion = 0;
 
 function load() {
   try {
-    return importPayload(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"schemaVersion":1,"records":[]}'));
-  } catch {
-    const emptyRecords = [];
-    return emptyRecords;
+    storedRaw = localStorage.getItem(STORAGE_KEY);
+    return importPayload(JSON.parse(storedRaw === null ? '{"schemaVersion":1,"records":[]}' : storedRaw));
+  } catch (error) {
+    loadProblem = error.message;
+    return [];
   }
 }
 
-function commit(next) {
-  records = persistRecords(localStorage, STORAGE_KEY, next);
+function renderRecovery() {
+  elements["storage-recovery"].hidden = !loadProblem;
+  elements["save-warranty"].disabled = Boolean(loadProblem);
+  elements["export-json"].disabled = Boolean(loadProblem);
+  elements["export-ics"].disabled = Boolean(loadProblem);
+  elements["export-recovery"].disabled = storedRaw === null;
+}
+
+function commit(next, recovery = false) {
+  if (loadProblem && !recovery) throw new Error("Saved data needs recovery. Review a valid backup before replacing it.");
+  if (localStorage.getItem(STORAGE_KEY) !== storedRaw) throw new Error("Saved records changed in another tab. Reload before saving.");
+  records = persistRecords({ setItem(key, value) { localStorage.setItem(key, value); storedRaw = value; } }, STORAGE_KEY, next);
+  loadProblem = null;
   recordsVersion += 1;
   clearMerge();
+  renderRecovery();
 }
 
 function today() {
@@ -32,7 +47,7 @@ function download(name, content, type) {
   link.href = URL.createObjectURL(new Blob([content], { type }));
   link.download = name;
   link.click();
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function formRecord() {
@@ -102,11 +117,12 @@ function card(record) {
 function render() {
   const counts = { active: 0, expiring: 0, expired: 0 };
   for (const record of records) counts[status(record, today())] += 1;
-  elements.summary.textContent = `${records.length} total · ${counts.expiring} expiring soon · ${counts.expired} expired`;
+  elements.summary.textContent = loadProblem ? "Saved data could not be read; recovery is required." : `${records.length} total · ${counts.expiring} expiring soon · ${counts.expired} expired`;
   const selected = elements.filter.value;
   const visible = sortRecords(records).filter((record) => selected === "all" || status(record, today()) === selected);
   elements.records.replaceChildren(...visible.map(card));
   elements["empty-state"].hidden = visible.length > 0;
+  elements["empty-state"].textContent = loadProblem ? "Existing data is unavailable. Use the recovery controls above." : "No warranties saved yet.";
 }
 
 elements["warranty-form"].addEventListener("submit", (event) => {
@@ -123,6 +139,7 @@ elements["warranty-form"].addEventListener("submit", (event) => {
 });
 elements["cancel-edit"].addEventListener("click", resetForm);
 elements.filter.addEventListener("change", render);
+elements["export-recovery"].addEventListener("click", () => { if (storedRaw !== null) download("warranties-recovery.json", storedRaw, "application/json"); });
 elements["export-json"].addEventListener("click", () => download("warranties.json", `${JSON.stringify(exportPayload(records), null, 2)}\n`, "application/json"));
 elements["export-ics"].addEventListener("click", () => download("warranty-expirations.ics", toIcs(records), "text/calendar"));
 elements["import-json"].addEventListener("change", async (event) => {
@@ -159,9 +176,12 @@ function cancelMerge(announce = true) {
 
 function showMerge(preview) {
   pendingMerge = { ...preview, recordsVersion };
+  elements["recovery-confirmation"].hidden = !loadProblem;
+  elements["confirm-recovery"].checked = false;
+  elements["merge-apply"].textContent = loadProblem ? "Restore reviewed backup" : "Apply merge";
   elements["merge-summary"].textContent = preview.additions.length + " new · " +
     preview.unchanged.length + " unchanged · " + preview.conflicts.length +
-    " conflicts. Existing records absent from this backup are kept.";
+    (loadProblem ? " conflicts. This reviewed backup will replace the unreadable saved data only after your confirmation." : " conflicts. Existing records absent from this backup are kept.");
   elements["merge-conflicts"].replaceChildren();
   preview.conflicts.forEach((conflict, index) => {
     const fieldset = document.createElement("fieldset");
@@ -204,14 +224,17 @@ elements["merge-apply"].addEventListener("click", () => {
       conflict.id, elements["merge-conflicts"].querySelector('input[name="merge-' + index + '"]:checked').value
     ]));
     const next = resolveMerge(pendingMerge, choices);
-    commit(next);
+    if (loadProblem && !elements["confirm-recovery"].checked) throw new Error("Confirm that you saved or no longer need the unreadable data before restoring.");
+    const recovering = Boolean(loadProblem);
+    commit(next, recovering);
     resetForm();
     render();
-    elements["import-message"].textContent = "Backup merged. Existing records were retained.";
+    elements["import-message"].textContent = recovering ? "Reviewed backup restored locally." : "Backup merged. Existing records were retained.";
     elements["import-json"].focus();
   } catch (error) {
     elements["import-message"].textContent = "Import not applied: " + error.message;
   }
 });
 
+renderRecovery();
 render();

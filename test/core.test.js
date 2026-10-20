@@ -41,3 +41,28 @@ test("calendar output escapes text and uses exclusive end date", () => {
   assert.match(calendar, /DTEND;VALUE=DATE:20270116/);
   assert.match(calendar, /Line 1\\nLine 2/);
 });
+
+
+test("backup fields require text rather than silently coercing data", () => {
+  for (const value of [7, true, {}, [], null]) {
+    for (const key of ["id", "item", "notes", "warrantyEnd"]) assert.throws(() => normalizeRecord({...record, [key]: value}), /must be text/);
+  }
+  assert.equal(validDate("0000-01-01"), false);
+});
+
+test("calendar text is escaped, UTF-8 folded and stamped", () => {
+  const text = toIcs([{...record, notes: "é😀".repeat(100) + "\rEND:VEVENT\r\nBEGIN:VEVENT"}], new Date("2026-10-20T12:34:56Z"));
+  assert.equal((text.replace(/\r\n /g, "").match(/BEGIN:VEVENT/g)||[]).length, 2); // One property value contains escaped text, never a content line.
+  assert.equal(text.split("\r\n").filter(line => line === "BEGIN:VEVENT").length, 1);
+  assert.ok(text.includes("DTSTAMP:20261020T123456Z"));
+  assert.ok(text.replace(/\r\n /g, "").includes("\\nEND:VEVENT\\nBEGIN:VEVENT"));
+  for (const line of text.split("\r\n")) assert.ok(Buffer.byteLength(line) <= 75);
+  assert.throws(() => toIcs([record], new Date(NaN)), /timestamp/);
+});
+
+test("last supported calendar day exports without an invalid five-digit end year", () => {
+  const text = toIcs([{...record, warrantyEnd: "9999-12-31"}]);
+  assert.ok(text.includes("DTSTART;VALUE=DATE:99991231"));
+  assert.ok(!text.includes("DTEND"));
+  assert.throws(() => toIcs([record, record]), /duplicate/);
+});

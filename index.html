@@ -14,6 +14,11 @@
     <p>Keep warranty dates useful without creating another account or uploading receipts.</p>
   </header>
   <main>
+    <section id="storage-recovery" class="panel" hidden aria-labelledby="recovery-heading">
+      <h2 id="recovery-heading">Saved data needs recovery</h2>
+      <p role="alert">The saved data could not be read and has been left unchanged. Download the original data, then import a valid backup and review it before replacing saved data. If browser storage is unavailable, enable access and reload.</p>
+      <button id="export-recovery" type="button">Download original data</button>
+    </section>
     <section class="panel" aria-labelledby="add-heading">
       <h2 id="add-heading">Add a warranty</h2>
       <form id="warranty-form">
@@ -26,7 +31,7 @@
         <label>Model or reference <input id="model" maxlength="120" autocomplete="off"></label>
         <label class="wide">Notes <textarea id="notes" rows="3" maxlength="1000"></textarea></label>
         <div class="actions wide">
-          <button type="submit">Save warranty</button>
+          <button type="submit" id="save-warranty">Save warranty</button>
           <button type="button" class="secondary" id="cancel-edit" hidden>Cancel edit</button>
         </div>
       </form>
@@ -61,6 +66,7 @@
         <h3 id="merge-heading">Review backup merge</h3>
         <p id="merge-summary"></p>
         <div id="merge-conflicts"></div>
+        <label id="recovery-confirmation" hidden><input id="confirm-recovery" type="checkbox">I saved the original data or no longer need it, and want to replace it with this reviewed backup.</label>
         <div class="actions">
           <button type="button" id="merge-apply">Apply merge</button>
           <button type="button" id="merge-cancel" class="secondary">Cancel import</button>
