@@ -1,23 +1,19 @@
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function validDate(value) {
-  if (!DATE_PATTERN.test(value)) return false;
+  if (typeof value !== "string" || !DATE_PATTERN.test(value) || value.startsWith("0000-")) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
 export function normalizeRecord(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Each record must be an object.");
-  const record = {
-    id: String(input.id || "").trim(),
-    item: String(input.item || "").trim(),
-    warrantyEnd: String(input.warrantyEnd || "").trim(),
-    purchaseDate: String(input.purchaseDate || "").trim(),
-    category: String(input.category || "").trim(),
-    vendor: String(input.vendor || "").trim(),
-    model: String(input.model || "").trim(),
-    notes: String(input.notes || "").trim(),
-  };
+  const record = {};
+  for (const key of ["id", "item", "warrantyEnd", "purchaseDate", "category", "vendor", "model", "notes"]) {
+    const value = input[key];
+    if (value !== undefined && typeof value !== "string") throw new Error(key + " must be text.");
+    record[key] = (value ?? "").trim();
+  }
   if (!record.id || !record.item) throw new Error("Each record requires an id and item name.");
   if (!validDate(record.warrantyEnd)) throw new Error("Warranty end must be a real YYYY-MM-DD date.");
   if (record.purchaseDate && !validDate(record.purchaseDate)) throw new Error("Purchase date must be a real YYYY-MM-DD date.");
@@ -52,20 +48,36 @@ export function importPayload(value) {
 }
 
 function escapeIcs(value) {
-  return value.replaceAll("\\", "\\\\").replaceAll("\n", "\\n").replaceAll(",", "\\,").replaceAll(";", "\\;");
+  return value.replaceAll("\\", "\\\\").replace(/\r\n|\r|\n/g, "\\n").replaceAll(",", "\\,").replaceAll(";", "\\;");
 }
 
-export function toIcs(records) {
-  const events = sortRecords(records).flatMap((record) => [
+function foldIcs(line) {
+  const encoder = new TextEncoder();
+  let folded = "", width = 0;
+  for (const character of line) {
+    const size = encoder.encode(character).length;
+    if (width + size > 75) { folded += "\r\n "; width = 1; }
+    folded += character; width += size;
+  }
+  return folded;
+}
+
+export function toIcs(records, createdAt = new Date()) {
+  if (!(createdAt instanceof Date) || !Number.isFinite(createdAt.getTime()) || createdAt.getUTCFullYear() < 1 || createdAt.getUTCFullYear() > 9999) throw new Error("Calendar requires a valid creation timestamp.");
+  const normalized = importPayload({ schemaVersion: 1, records });
+  const timestamp = createdAt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const events = sortRecords(normalized).flatMap((record) => [
     "BEGIN:VEVENT",
     `UID:${escapeIcs(record.id)}@warranty-expiration-file`,
+    `DTSTAMP:${timestamp}`,
     `DTSTART;VALUE=DATE:${record.warrantyEnd.replaceAll("-", "")}`,
-    `DTEND;VALUE=DATE:${addDays(record.warrantyEnd, 1).replaceAll("-", "")}`,
+    // An all-day DTSTART without DTEND has a one-day duration. Avoid a five-digit year.
+    ...(record.warrantyEnd === "9999-12-31" ? [] : [`DTEND;VALUE=DATE:${addDays(record.warrantyEnd, 1).replaceAll("-", "")}`]),
     `SUMMARY:${escapeIcs(`Warranty ends: ${record.item}`)}`,
     `DESCRIPTION:${escapeIcs([record.vendor, record.model, record.notes].filter(Boolean).join(" · "))}`,
     "END:VEVENT",
   ]);
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Logan Pendragon Multiverse//Warranty Expiration File//EN", ...events, "END:VCALENDAR", ""].join("\r\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Logan Pendragon Multiverse//Warranty Expiration File//EN", ...events, "END:VCALENDAR", ""].map(foldIcs).join("\r\n");
 }
 
 // Pure preview: neither the current records nor backup is changed.

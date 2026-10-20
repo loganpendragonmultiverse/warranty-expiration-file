@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 - 2026-10-20
+
+- Inline the dependency-free app and styles in the release entry point so the extracted ZIP opens offline without blocked module fetches.
+
+- Preserve unreadable saved data, provide an original-data download, and require explicit confirmation before restoring a reviewed valid backup. Block empty exports and normal saves during recovery.
+- Refuse stale-tab saves when another tab changes stored records.
+- Validate backup field types and calendar date bounds; add creation stamps, CR/LF escaping and UTF-8 folding to ICS exports.
+- Expand unit and browser regressions for recovery, concurrent changes and calendar edge cases.
+
 ## 1.1.1 - 2026-10-16
 
 - Correct the completed 1.1.0 release wording and dates; feature behavior is unchanged.

@@ -14,9 +14,9 @@ jobs:
         with: { node-version: 24 }
       - run: npm ci
       - run: npm test
+      - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run check
-      - run: npm run build
       - name: Assert deployable output
         run: test -f dist/site/index.html && test -f dist/site/src/core.js && test -f dist/site/src/app.js && test -f dist/site/src/styles.css
